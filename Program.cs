@@ -1,55 +1,43 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
-// using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<DataContext>(opts =>
 {
-    opts.UseSqlServer(builder.Configuration["ConnectionStrings:ProductConnection"]);
+    opts.UseSqlServer(builder.Configuration[
+    "ConnectionStrings:ProductConnection"]);
     opts.EnableSensitiveDataLogging(true);
 });
 
-builder.Services.AddControllers().AddNewtonsoftJson().AddXmlDataContractSerializerFormatters();
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
 
-builder.Services.Configure<MvcNewtonsoftJsonOptions>(opts =>
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
 {
-    opts.SerializerSettings.NullValueHandling
-    = Newtonsoft.Json.NullValueHandling.Ignore;
+    options.Cookie.IsEssential = true;
 });
 
-// builder.Services.Configure<JsonOptions>(opts =>
-// {
-//     opts.JsonSerializerOptions.DefaultIgnoreCondition
-//     = JsonIgnoreCondition.WhenWritingNull;
-// });
-
-builder.Services.Configure<MvcOptions>(opts =>
+builder.Services.Configure<RazorPagesOptions>(opts =>
 {
-    opts.RespectBrowserAcceptHeader = true;
-    opts.ReturnHttpNotAcceptable = true;
+    opts.Conventions.AddPageRoute("/Index", "/extra/page/{id:long?}");
 });
 
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "WebApp", Version = "v1" });
-});
+builder.Services.AddSingleton<CitiesData>();
 
 var app = builder.Build();
 
+app.UseStaticFiles();
+app.UseSession();
 app.MapControllers();
+app.MapDefaultControllerRoute();
+app.MapRazorPages();
 
-app.MapGet("/", () => "Hello World!");
+var context = app.Services.CreateScope().ServiceProvider
+ .GetRequiredService<DataContext>();
 
-app.UseSwagger();
-app.UseSwaggerUI(options =>
-{
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApp");
-});
-
-var context = app.Services.CreateScope().ServiceProvider.GetRequiredService<DataContext>();
 SeedData.SeedDatabase(context);
 
 app.Run();
