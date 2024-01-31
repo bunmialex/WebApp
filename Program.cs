@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
-using Microsoft.AspNetCore.Antiforgery;
-// using Microsoft.AspNetCore.Razor.TagHelpers;
-// using WebApp.TagHelpers;
+using WebApp.Filters;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,38 +13,22 @@ builder.Services.AddDbContext<DataContext>(opts =>
 });
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
-builder.Services.AddSingleton<CitiesData>();
-builder.Services.Configure<AntiforgeryOptions>(opts =>
+
+builder.Services.AddScoped<GuidResponseAttribute>();
+builder.Services.Configure<MvcOptions>(opts =>
 {
-    opts.HeaderName = "X-XSRF-TOKEN";
+    opts.Filters.Add<HttpsOnlyAttribute>();
+    opts.Filters.Add(new MessageAttribute("This is the globally-scoped filter"));
 });
-// builder.Services.AddTransient<ITagHelperComponent, TimeTagHelperComponent>();
-// builder.Services.AddTransient<ITagHelperComponent, TableFooterTagHelperComponent>();
 
 var app = builder.Build();
 
 app.UseStaticFiles();
-IAntiforgery antiforgery = app.Services.GetRequiredService<IAntiforgery>();
-app.Use(async (context, next) =>
-{
-    if (!context.Request.Path.StartsWithSegments("/api"))
-    {
-        string? token = antiforgery.GetAndStoreTokens(context).RequestToken;
-        if (token != null)
-        {
-            context.Response.Cookies.Append("XSRF-TOKEN",
-            token,
-            new CookieOptions { HttpOnly = false });
-        }
-    }
-    await next();
-});
-// app.MapControllers();
-// app.MapDefaultControllerRoute();
-app.MapControllerRoute("forms", "controllers/{controller=Home}/{action=Index}/{id?}");
+app.MapDefaultControllerRoute();
 app.MapRazorPages();
 
 var context = app.Services.CreateScope().ServiceProvider
  .GetRequiredService<DataContext>();
 SeedData.SeedDatabase(context);
+
 app.Run();
